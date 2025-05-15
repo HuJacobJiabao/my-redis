@@ -9,11 +9,12 @@ public:
     RedisServer(int port);
     void run();
     void shutdown();
-
+    
 private:
     int port;
     int server_fd;
     std::atomic<bool> running;
+    void setupSignalHandler();
 };
 #endif
 

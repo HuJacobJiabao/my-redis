@@ -1,15 +1,18 @@
 #include "../include/RedisCommandHandler.h"
+#include "../include/RedisDatabase.h"
 #include <iostream>
 #include <vector>
 #include <sstream>
 #include <algorithm>
 
+
 // RESP parser
 // Sample RESP "*2\r\n$5\r\nhello\r\n$5\r\nworld\r\n"
 std::vector<std::string> parseRespCommand(const std::string& command) {
     std::vector<std::string> tokens;
+    std::cout << "Parsing command: \n" << command << "\n";
     if (command.empty()) return tokens;
-
+    
     // If it doesn't start with '*', fallback to splitting by whitespace.
     if (command[0] != '*') {
         std::istringstream iss(command);
@@ -28,16 +31,24 @@ std::vector<std::string> parseRespCommand(const std::string& command) {
 
     // crlf = carriage return (\r) + line feed (\n)
     size_t crlf = command.find("\r\n", pos);
+
+    // std::cout << "crlf: " << crlf << "\n";
+
     if (crlf == std::string::npos) return tokens;
-    
+
     int numElements = std::stoi(command.substr(pos, crlf - pos));
+
+    // std::cout << "Number of elements: " << numElements << "\n";
+
     pos = crlf + 2;
 
     for (int i = 0; i < numElements; i++) {
-        if (pos >= command.size() || command[pos] != '&') break; // format error
+
+        if (pos >= command.size() || command[pos] != '$') break; // format error
         pos++;  // skip '$'
-        
+
         crlf = command.find("\r\n", pos);
+
         if (crlf == std::string::npos) break;
         int len = std::stoi(command.substr(pos, crlf - pos));
         pos = crlf + 2;
@@ -52,14 +63,30 @@ std::vector<std::string> parseRespCommand(const std::string& command) {
 
 }
 
+RedisCommandHandler::RedisCommandHandler(){}
+
 std::string RedisCommandHandler::handleCommand(const std::string& command) {
     auto tokens = parseRespCommand(command);
     if (tokens.empty()) return "-Error: Empty command\r\n";
 
     std::string cmd = tokens[0];
+
     std::transform(cmd.begin(), cmd.end(), cmd.begin(), ::toupper);
     std::ostringstream response;
+    RedisDatabase& db = RedisDatabase::getInstance();
 
+    // Handle commands
+    if (cmd == "PING") {
+        response << "+PONG\r\n";
+    } else if (cmd == "ECHO") {
+
+    } 
+    // Key-value commands
+    else if (cmd == "SET"){
+
+    } else {
+        response << "-Error: Unknown command\r\n";
+    }
 
     return response.str();
 }

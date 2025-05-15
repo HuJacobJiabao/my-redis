@@ -1,14 +1,34 @@
 #include "../include/RedisServer.h"
+#include "../include/RedisCommandHandler.h"
+#include "../include/RedisDatabase.h"
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <iostream>
 #include <unistd.h>
+#include <vector>
+#include <thread>
+#include <cstring>
+#include <csignal>
 
 
 static RedisServer* globalServer = nullptr;
 
+void signalHandler(int signum) {
+    if (globalServer) {
+        std::cout << "\nCaught Singal: " << signum << ", shutting down\n";
+        std::cout.flush();
+        globalServer->shutdown(); 
+    }
+    exit(signum);
+}
+
+void RedisServer::setupSignalHandler(){
+    signal(SIGINT, signalHandler);
+}
+
 RedisServer::RedisServer(int port) : port(port), server_fd(-1), running(true) {
     globalServer = this;
+    setupSignalHandler();
 }
 
 void RedisServer::shutdown() {
@@ -46,4 +66,40 @@ void RedisServer::run() {
     }
 
     std::cout << "Redis Server Listening On Port: " << port << ".\n";
+
+    std::vector<std::thread> threads;
+    RedisCommandHandler cmdHandler;
+
+    while (running) {
+        int client_fd = accept(server_fd, nullptr, nullptr);
+    
+        threads.emplace_back([client_fd, &cmdHandler]() {
+            char buffer[1024];
+            while (true) {
+                memset(buffer, 0, sizeof(buffer));
+                int bytes = recv(client_fd, buffer, sizeof(buffer) - 1, 0);
+                if (bytes < 0) break;
+                
+                buffer[bytes] = '\0';
+                std::string request(buffer);
+
+                std::string response = cmdHandler.handleCommand(request);
+                send(client_fd, response.c_str(), response.size(), 0);
+            }
+            close(client_fd);
+        });
+    }
+    
+    for (auto& t: threads){
+        if (t.joinable()) t.join();
+    }
+
+    if (RedisDatabase::getInstance().dump("dump.my_rdb")) {
+        std::cout << "Database dumped to dump.my_rdb successfully\n";
+    } else {
+        std::cerr << "Error dumping database\n";
+    }
+
+    // Shutdown
+
 }

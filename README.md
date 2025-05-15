@@ -2,96 +2,148 @@
 
 ## Table of Contents
 
-- [Day One: Setting Up the Core Server Loop](#day-one-setting-up-the-core-server-loop)
-  - [Step 1: Set Up the Server Socket](#step-1-set-up-the-server-socket)
-  - [Step 2: Accept and Handle Connections](#step-2-accept-and-handle-connections)
-  - [Step 3: Implement a Command Handler](#step-3-implement-a-command-handler)
-  - [Step 4: Add Optional Persistence](#step-4-add-optional-persistence)
-  - [Step 5: Connect Everything in main()](#step-5-connect-everything-in-main)
-  - [Summary](#summary)
-  - [Next Steps](#next-steps)
+[toc]
 
 ## Day One: Setting Up the Core Server Loop
 
-This tutorial walks you through building a Redis-like server in C++ from scratch. You'll implement RESP command parsing, socket-based communication, and command handling — laying the foundation for a lightweight, extensible Redis clone.
+---
+
+### Step 1: Set Up the Server Socket
+
+We created a `RedisServer` class and initialized a TCP socket using `socket()`, then bound it to port 6379 using `bind()`, and started listening with `listen()`.
+
+**Key Concepts:**
+- Socket creation and setup
+- Binding and listening for clients
 
 ---
 
-##  Step 1: Set Up the Server Socket
+### Step 2: Accept and Handle Connections
 
-###  What You’ll Do
-- Create a `RedisServer` class.
-- Initialize a TCP socket using `socket()`.
-- Bind it to a port with `bind()`.
-- Listen for incoming connections using `listen()`.
-
-###  Key Concepts
-- **Socket**: Endpoint for network communication.
-- **Binding**: Associates socket with an IP and port.
-- **Listening**: Puts the socket into a passive state to accept connections.
+We added a `run()` method in `RedisServer` that accepts incoming client connections with `accept()` and reads requests using `recv()`.
 
 ---
 
-##  Step 2: Accept and Handle Connections
+### Step 3: Implement a Command Handler
 
-###  What You’ll Do
-- Add a `run()` method to start the server loop.
-- Use `accept()` to handle new client connections.
-- Read and respond to incoming messages.
-
-###  Key Concepts
-- **Accepting clients**: Waits for and establishes a connection.
-- **Request loop**: Continuously reads and writes to/from the socket.
+A `RedisCommandHandler` class parses RESP-formatted input and handles commands like `PING`. It returns a valid Redis response.
 
 ---
 
-##  Step 3: Implement a Command Handler
+### Step 4: Add Optional Persistence
 
-###  What You’ll Do
-- Create a `RedisCommandHandler` class.
-- Parse input using RESP (Redis Serialization Protocol).
-- Handle basic commands like `PING`.
-
-###  Key Concepts
-- **RESP**: Text-based protocol used by Redis clients.
-- **Command processing**: Map parsed commands to corresponding logic and responses.
+We launched a detached thread that sleeps for 300 seconds and can later be used to persist the database.
 
 ---
 
-##  Step 4: Add Optional Persistence
+### Step 5: Connect Everything in main()
 
-###  What You’ll Do
-- Start a detached background thread.
-- Periodically run a persistence task (e.g., every 300 seconds).
-
-###  Key Concepts
-- **Threading**: Run tasks in the background without blocking.
-- **Persistence**: Optional, but critical for saving in-memory data.
+The `main()` function now:
+- Instantiates `RedisServer`
+- Launches the persistence thread
+- Calls `run()` to start the server loop
 
 ---
 
-##  Step 5: Connect Everything in `main()`
+### Summary
 
-###  What You’ll Do
-- Instantiate `RedisServer` with a port (default: 6379).
-- Start optional persistence thread.
-- Launch the main server loop via `run()`.
-
----
-
-##  Summary
-
-By the end of this tutorial, you will have built a simple Redis-like server in C++ that:
-- Listens on a TCP socket.
-- Handles basic RESP-formatted commands like `PING`.
-- Responds to clients using the standard Redis protocol.
+We now have a Redis-like server that:
+- Accepts client connections
+- Parses RESP commands
+- Has a placeholder for persistence
 
 ---
 
-##  Next Steps
+## Day Two: Handling Clients and Adding Persistence
 
-Once your basic server works, you can:
-- Add support for commands like `ECHO`, `SET`, `GET`.
-- Implement a key-value store (e.g., `std::unordered_map`).
-- Improve performance with non-blocking I/O or multithreading.
-- Add RDB or AOF persistence support like real Redis.
+---
+
+### Step 1: Accept and Handle Multiple Clients
+
+We updated the `run()` method in `RedisServer.cpp` to support multiple concurrent clients:
+
+- Each client is handled in a separate thread stored in a thread-safe vector.
+- Each client thread runs a `while (true)` loop that reads from the socket.
+- Incoming data is processed using `RedisCommandHandler`.
+
+---
+
+### Step 2: RedisCommandHandler Integration
+
+The server uses `RedisCommandHandler` to parse and respond to commands, keeping logic modular and testable.
+
+---
+
+### Step 3: Thread Management
+
+Threads are tracked in a `std::vector<std::thread>`, and joined before the server exits to ensure clean shutdown.
+
+---
+
+### Step 4: Add RedisDatabase Singleton
+
+We implemented `RedisDatabase` as a singleton with:
+
+```cpp
+class RedisDatabase {
+public:
+    // Get the singleton instance
+    static RedisDatabase& getInstance();
+
+    // Persistance: dump / load the database from a file
+    bool dump(const std::string& filename);
+    bool load(const std::string& filename); 
+private:
+    RedisDatabase() = default;
+    ~RedisDatabase() = default;
+    RedisDatabase(const RedisDatabase&) = delete;
+    RedisDatabase& operator = (const RedisDatabase&) = delete;
+};
+```
+
+It will store key-value data and supports persistence to/from disk.
+
+---
+
+### Step 5: Background Persistence Thread
+
+A detached thread is started in `main.cpp` that:
+- Calls `RedisDatabase::dump()` every 300 seconds
+- Runs independently in the background
+
+---
+
+### Step 6: Graceful Shutdown via Signal Handling
+
+Signal handling is added to `RedisServer` for clean shutdown:
+
+```cpp
+void signalHandler(int signum) {
+    if (globalServer) {
+        globalServer->shutdown();
+    }
+    exit(signum);
+}
+
+void RedisServer::setupSignalHandler() {
+    signal(SIGINT, signalHandler);
+}
+```
+
+This ensures the database is persisted before exit.
+
+---
+
+### Step 7: Updated Build System
+
+We updated the `Makefile` to:
+- Compile all `.cpp` files
+- Include `-pthread` for thread support
+
+---
+
+By the end of Day Two, the server supports:
+- Multi-client concurrency
+- RESP command handling
+- Periodic data persistence
+- Graceful shutdown
