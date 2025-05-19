@@ -1,0 +1,7 @@
+K weather sunny
+K city Berlin
+K name Alice
+L colors  red green blue
+L fruits  apple banana orange
+H user:200  email:eve@example.com age:25 name:Eve
+H user:100  email:bob@example.com age:30 name:Bob

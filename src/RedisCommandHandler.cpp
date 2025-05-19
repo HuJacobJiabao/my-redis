@@ -10,7 +10,7 @@
 // Sample RESP "*2\r\n$5\r\nhello\r\n$5\r\nworld\r\n"
 std::vector<std::string> parseRespCommand(const std::string& command) {
     std::vector<std::string> tokens;
-    std::cout << "Parsing command: \n" << command << "\n";
+    // std::cout << "Parsing command: \n" << command << "\n";
     if (command.empty()) return tokens;
     
     // If it doesn't start with '*', fallback to splitting by whitespace.
@@ -93,10 +93,11 @@ std::string RedisCommandHandler::handleCommand(const std::string& command) {
         if (tokens.size() < 3) 
             response << "-Error: SET command requires a key and a value\r\n";
         else {
+            std::cout << "dbg here\n"; 
             std::string key = tokens[1];
             std::string value = tokens[2];
-            if (db.set(key, value))
-                response << "+OK\r\n";
+            db.set(key, value);
+            response << "+OK\r\n";
         }
     } else if (cmd == "GET") {
         if (tokens.size() < 2) 
@@ -131,9 +132,12 @@ std::string RedisCommandHandler::handleCommand(const std::string& command) {
         if (tokens.size() < 3)
             response << "-Error: EXPIRE command requires a key and a time in seconds";
         else {
-            if (db.expire(tokens[1], tokens[2]))
+            int seconds = std::stoi(tokens[2]);
+            if (db.expire(tokens[1], seconds))
                 //TODO: response needs to be corrected
                 response << "+OK\r\n";
+            else
+                response << "-Error: Key not found\r\n";
         }
     } else if (cmd == "RENAME") {
         if (tokens.size() < 3) 

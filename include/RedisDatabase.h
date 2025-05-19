@@ -15,13 +15,13 @@ public:
     bool flushAll();
 
     // Key-Value operations
-    bool set(const std::string& key, const std::string& value);
-    bool get(const std::string& key, const std::string& value);
+    void set(const std::string& key, const std::string& value);
+    bool get(const std::string& key, std::string& value);
     bool del(const std::string& key);
     bool exists(const std::string& key);
     std::vector<std::string> keys();
     std::string type(const std::string& key);
-    bool expire(const std::string& key, const std::string& seconds);
+    bool expire(const std::string& key, int seconds);
     bool rename(const std::string& oldKey, const std::string& newKey);
 
 

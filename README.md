@@ -14,6 +14,7 @@ On Day 1, you will build the foundation of your Redis-like server. You will set 
 - Create a `RedisServer` class.
 - In the constructor, use `socket()` to create a TCP socket, `bind()` it to port 6379, and call `listen()` to start listening for connections.
 - Handle errors if the port is in use or if socket creation fails.
+- May need to run `sudo service redis-server stop` to close the default redis-server.
 
 #### 2. Accept and Handle Connections
 - Add a `run()` method to `RedisServer`.

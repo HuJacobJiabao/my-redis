@@ -34,6 +34,11 @@ RedisServer::RedisServer(int port) : port(port), server_fd(-1), running(true) {
 void RedisServer::shutdown() {
     running = false;
     if (server_fd != -1) {
+        if (RedisDatabase::getInstance().dump("dump.my_rdb")) {
+            std::cout << "Database dumped to dump.my_rdb successfully\n";
+        } else {
+            std::cerr << "Error dumping database\n";
+        }
         close(server_fd);
     }
     std::cout << "Server shutdown complete\n";
@@ -78,14 +83,14 @@ void RedisServer::run() {
             while (true) {
                 memset(buffer, 0, sizeof(buffer));
                 int bytes = recv(client_fd, buffer, sizeof(buffer) - 1, 0);
-                if (bytes < 0) break;
+                if (bytes <= 0) break;
                 
-                buffer[bytes] = '\0';
-                std::string request(buffer);
+                std::string request(buffer, bytes);
 
                 std::string response = cmdHandler.handleCommand(request);
                 send(client_fd, response.c_str(), response.size(), 0);
             }
+            // std::cout << "dbg HERE\n";
             close(client_fd);
         });
     }
