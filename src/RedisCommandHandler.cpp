@@ -70,86 +70,105 @@ std::string RedisCommandHandler::handleCommand(const std::string& command) {
     if (tokens.empty()) return "-Error: Empty command\r\n";
 
     std::string cmd = tokens[0];
-
     std::transform(cmd.begin(), cmd.end(), cmd.begin(), ::toupper);
-    std::ostringstream response;
     RedisDatabase& db = RedisDatabase::getInstance();
 
-    // Handle commands
     if (cmd == "PING") {
-        response << "+PONG\r\n";
+        return handlePing(tokens, db);
     } else if (cmd == "ECHO") {
-        if (tokens.size() < 2) 
-            response << "-Error: ECHO command requires a message\r\n";
-        else {
-            response << "+" << tokens[1] << "\r\n";
-        }
+        return handleEcho(tokens, db);
     } else if (cmd == "FLUSHALL") {
-        db.flushAll();
-        response << "+OK\r\n";
-    } 
-    // Key-value commands
-    else if (cmd == "SET"){
-        if (tokens.size() < 3) 
-            response << "-Error: SET command requires a key and a value\r\n";
-        else {
-            std::cout << "dbg here\n"; 
-            std::string key = tokens[1];
-            std::string value = tokens[2];
-            db.set(key, value);
-            response << "+OK\r\n";
-        }
+        return handleFlushAll(tokens, db);
+    } else if (cmd == "SET") {
+        return handleSet(tokens, db);
     } else if (cmd == "GET") {
-        if (tokens.size() < 2) 
-            response << "-Error: GET command requires a key\r\n";
-        else {
-            std::string value;
-            if (db.get(tokens[1], value)) 
-                response << "$" << value.size() << "\r\n" << value << "\r\n";
-            else 
-                response << "%-1\r\n";
-        }
+        return handleGet(tokens, db);
     } else if (cmd == "KEYS") {
-        std::vector<std::string> allKeys = db.keys();
-        response << "*" << allKeys.size() << "\r\n";
-        for (const auto& key :allKeys) {
-            response << "$" << key.size() << "\r\n" << key << "\r\n";
-        }
+        return handleKeys(tokens, db);
     } else if (cmd == "TYPE") {
-        if (tokens.size() < 2)
-            response << "-Error: TYPE command requires a key\r\n";
-        else {
-            response << "+" << db.type(tokens[1]) << "\r\n";
-        }
+        return handleType(tokens, db);
     } else if (cmd == "DEL" || cmd == "UNLINK") {
-        if (tokens.size() < 2)
-            response << "-Error: "<< cmd << " command requires a key\r\n";
-        else {
-            bool res = db.del(tokens[1]);
-            response << ":" << (res ? 1 : 0) << "\r\n";
-        }
+        return handleDel(tokens, db);
     } else if (cmd == "EXPIRE") {
-        if (tokens.size() < 3)
-            response << "-Error: EXPIRE command requires a key and a time in seconds";
-        else {
-            int seconds = std::stoi(tokens[2]);
-            if (db.expire(tokens[1], seconds))
-                //TODO: response needs to be corrected
-                response << "+OK\r\n";
-            else
-                response << "-Error: Key not found\r\n";
-        }
+        return handleExpire(tokens, db);
     } else if (cmd == "RENAME") {
-        if (tokens.size() < 3) 
-            response << "-Error: RENAME command requires an old key name and a new key name";
-        else {
-            if (db.rename(tokens[1], tokens[2]))
-                response << "+OK\r\n";
-        }
+        return handleRename(tokens, db);
+    } else {
+        return "-Error: Unknown command\r\n";
     }
-    else {
-        response << "-Error: Unknown command\r\n";
-    }
+}
 
+// Handler function implementations
+std::string handlePing(const std::vector<std::string>&, RedisDatabase&) {
+    return "+PONG\r\n";
+}
+
+std::string handleEcho(const std::vector<std::string>& tokens, RedisDatabase&) {
+    if (tokens.size() < 2)
+        return "-Error: ECHO command requires a message\r\n";
+    return "+" + tokens[1] + "\r\n";
+}
+
+std::string handleFlushAll(const std::vector<std::string>&, RedisDatabase& db) {
+    db.flushAll();
+    return "+OK\r\n";
+}
+
+std::string handleSet(const std::vector<std::string>& tokens, RedisDatabase& db) {
+    if (tokens.size() < 3)
+        return "-Error: SET command requires a key and a value\r\n";
+    db.set(tokens[1], tokens[2]);
+    return "+OK\r\n";
+}
+
+std::string handleGet(const std::vector<std::string>& tokens, RedisDatabase& db) {
+    if (tokens.size() < 2)
+        return "-Error: GET command requires a key\r\n";
+    std::string value;
+    if (db.get(tokens[1], value))
+        return "$" + std::to_string(value.size()) + "\r\n" + value + "\r\n";
+    else
+        return "$-1\r\n";
+}
+
+std::string handleKeys(const std::vector<std::string>&, RedisDatabase& db) {
+    std::vector<std::string> allKeys = db.keys();
+    std::ostringstream response;
+    response << "*" << allKeys.size() << "\r\n";
+    for (const auto& key : allKeys) {
+        response << "$" << key.size() << "\r\n" << key << "\r\n";
+    }
     return response.str();
+}
+
+std::string handleType(const std::vector<std::string>& tokens, RedisDatabase& db) {
+    if (tokens.size() < 2)
+        return "-Error: TYPE command requires a key\r\n";
+    return "+" + db.type(tokens[1]) + "\r\n";
+}
+
+std::string handleDel(const std::vector<std::string>& tokens, RedisDatabase& db) {
+    if (tokens.size() < 2)
+        return "-Error: DEL command requires a key\r\n";
+    bool res = db.del(tokens[1]);
+    return ":" + std::to_string(res ? 1 : 0) + "\r\n";
+}
+
+std::string handleExpire(const std::vector<std::string>& tokens, RedisDatabase& db) {
+    if (tokens.size() < 3)
+        return "-Error: EXPIRE command requires a key and a time in seconds";
+    int seconds = std::stoi(tokens[2]);
+    if (db.expire(tokens[1], seconds))
+        return "+OK\r\n";
+    else
+        return "-Error: Key not found\r\n";
+}
+
+std::string handleRename(const std::vector<std::string>& tokens, RedisDatabase& db) {
+    if (tokens.size() < 3)
+        return "-Error: RENAME command requires an old key name and a new key name";
+    if (db.rename(tokens[1], tokens[2]))
+        return "+OK\r\n";
+    else
+        return "-Error: RENAME failed\r\n";
 }
