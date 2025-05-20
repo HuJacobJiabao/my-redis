@@ -2,6 +2,7 @@
 #include <iostream>
 #include <sstream>
 #include <fstream>
+#include <algorithm>
 
 RedisDatabase& RedisDatabase::getInstance() {
     static RedisDatabase instance;
@@ -105,7 +106,7 @@ bool RedisDatabase::flushAll() {
     return true;
 }
 
-// Key-Value operations
+// Key-Value Operations
 void RedisDatabase::set(const std::string& key, const std::string& value) {
     std::lock_guard<std::mutex> lock(mtx);
     kv_store[key] = value;
@@ -205,4 +206,121 @@ bool RedisDatabase::rename(const std::string& oldKey, const std::string& newKey)
 
     return found;
 
+}
+
+// List Operations
+ssize_t RedisDatabase::llen(const std::string& key) {
+    std::lock_guard<std::mutex> lock(mtx);
+    auto it = list_store.find(key);
+    if (it != list_store.end())
+        return it->second.size();
+    return 0;
+}
+
+void RedisDatabase::lpush(const std::string& key, const std::string& value) {
+    std::lock_guard<std::mutex> lock(mtx);
+    list_store[key].insert(list_store[key].begin(), value);
+}
+
+void RedisDatabase::rpush(const std::string& key, const std::string& value) {
+    std::lock_guard<std::mutex> lock(mtx);
+    list_store[key].push_back(value);
+}
+
+bool RedisDatabase::lpop(const std::string& key, std::string& value) {
+    std::lock_guard<std::mutex> lock(mtx);
+    auto it = list_store.find(key);
+    if (it != list_store.end() && !it->second.empty()) {
+        value = it->second.front();
+        it->second.erase(it->second.begin());
+        return true;
+    }
+
+    return false;
+}
+
+bool RedisDatabase::rpop(const std::string& key, std::string& value) {
+    std::lock_guard<std::mutex> lock(mtx);
+    auto it = list_store.find(key);
+    if (it != list_store.end() && !it->second.empty()) {
+        value = it->second.back();
+        it->second.pop_back();
+        return true;
+    }
+
+    return false;
+}
+
+int RedisDatabase::lrem(const std::string& key, int count, const std::string& value) {
+    std::lock_guard<std::mutex> lock(mtx);
+    int removed = 0;
+    auto it = list_store.find(key);
+    if (it == list_store.end())
+        return 0;
+    auto& list = it->second;
+
+    if (count == 0) {
+        // Remove all occurances
+        auto new_end = std::remove(list.begin(), list.end(), value);
+        removed = std::distance(new_end, list.end());
+        list.erase(new_end, list.end());
+    } else if (count < 0) {
+        // Remove from tail to head
+        for (auto riter = list.rbegin(); riter != list.rend() && removed < (-count); ) {
+            if (*riter == value) {
+                auto fwdIterator = riter.base();
+                --fwdIterator;
+                fwdIterator = list.erase(fwdIterator);
+                ++removed;
+                riter = std::reverse_iterator<std::vector<std::string>::iterator>(fwdIterator);
+            } else {
+                ++riter;
+            }
+        }
+    } else {
+        // Remove from head to tail
+        for (auto iter = list.begin(); iter != list.end() && removed < count; ) {
+            if (*iter == value) {
+                iter = list.erase(iter);
+                ++removed;
+            } else {
+                ++iter;
+            }
+        }
+    }
+    return removed;
+}
+
+
+bool RedisDatabase::lindex(const std::string& key, int index, std::string& value) {
+    std::lock_guard<std::mutex> lock(mtx);
+    auto it = list_store.find(key);
+    if (it == list_store.end())
+        return false;
+    
+    const auto& list = it->second;
+    if (index < 0)
+        index = list.size() + index;
+    if (index < 0 || index >= static_cast<int>(list.size())) 
+        return false;
+    
+    value = list[index];
+
+    return true;
+}
+
+bool RedisDatabase::lset(const std::string& key, int index, const std::string& value) {
+    std::lock_guard<std::mutex> lock(mtx);
+    auto it = list_store.find(key);
+    if (it == list_store.end())
+        return false;
+    
+    auto& list = it->second;
+    if (index < 0)
+        index = list.size() + index;
+    if (index < 0 || index >= static_cast<int>(list.size())) 
+        return false;
+    
+    list[index] = value;
+    return true;
 }

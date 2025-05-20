@@ -24,6 +24,18 @@ public:
     bool expire(const std::string& key, int seconds);
     bool rename(const std::string& oldKey, const std::string& newKey);
 
+    // List Operations
+    ssize_t llen(const std::string& key);
+    void lpush(const std::string& key, const std::string& value);
+    void rpush(const std::string& key, const std::string& value);
+    bool lpop(const std::string& key, std::string& value);
+    bool rpop(const std::string& key, std::string& value);
+    int lrem(const std::string& key, int count, const std::string& value);
+    bool lindex(const std::string& key, int index, std::string& value);
+    bool lset(const std::string& key, int index, const std::string& value);
+
+    // Hash Operations
+
 
 
     // Persistance: dump / load the database from a file

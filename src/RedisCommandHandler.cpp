@@ -73,13 +73,16 @@ std::string RedisCommandHandler::handleCommand(const std::string& command) {
     std::transform(cmd.begin(), cmd.end(), cmd.begin(), ::toupper);
     RedisDatabase& db = RedisDatabase::getInstance();
 
+    // Common commands
     if (cmd == "PING") {
         return handlePing(tokens, db);
     } else if (cmd == "ECHO") {
         return handleEcho(tokens, db);
     } else if (cmd == "FLUSHALL") {
         return handleFlushAll(tokens, db);
-    } else if (cmd == "SET") {
+    } 
+    // Key/Value operations
+    else if (cmd == "SET") {
         return handleSet(tokens, db);
     } else if (cmd == "GET") {
         return handleGet(tokens, db);
@@ -93,12 +96,33 @@ std::string RedisCommandHandler::handleCommand(const std::string& command) {
         return handleExpire(tokens, db);
     } else if (cmd == "RENAME") {
         return handleRename(tokens, db);
-    } else {
+    }  
+    // List operations
+    else if (cmd == "LLEN") {
+        return handleLlen(tokens, db);
+    } else if (cmd == "LPUSH") {
+        return handleLpush(tokens, db);
+    } else if (cmd == "RPUSH") {
+        return handleRpush(tokens, db);
+    } else if (cmd == "LPOP") {
+        return handleLpop(tokens, db);
+    } else if (cmd == "RPOP") {
+        return handleRpop(tokens, db);
+    } else if (cmd == "LREM") {
+        return handleLrem(tokens, db);
+    } else if (cmd == "LINDEX") {
+        return handleLindex(tokens, db);
+    } else if (cmd == "LSET") {
+        return handleLset(tokens, db);
+    }
+    else {
         return "-Error: Unknown command\r\n";
     }
 }
 
-// Handler function implementations
+// *** Handler function implementations ***
+
+// Common functions
 std::string handlePing(const std::vector<std::string>&, RedisDatabase&) {
     return "+PONG\r\n";
 }
@@ -114,6 +138,7 @@ std::string handleFlushAll(const std::vector<std::string>&, RedisDatabase& db) {
     return "+OK\r\n";
 }
 
+// Key/Value operations
 std::string handleSet(const std::vector<std::string>& tokens, RedisDatabase& db) {
     if (tokens.size() < 3)
         return "-Error: SET command requires a key and a value\r\n";
@@ -172,3 +197,88 @@ std::string handleRename(const std::vector<std::string>& tokens, RedisDatabase& 
     else
         return "-Error: RENAME failed\r\n";
 }
+
+// List Operations
+std::string handleLlen(const std::vector<std::string>& tokens, RedisDatabase& db) {
+    if (tokens.size() < 2)
+        return "-Error: LLEN command requires key\r\n";
+    ssize_t len = db.llen(tokens[1]);
+    return ":" + std::to_string(len) + "\r\n";
+}
+
+std::string handleLpush(const std::vector<std::string>& tokens, RedisDatabase& db) {
+    if (tokens.size() < 3)
+        return "-Error: LPUSH command requires key and value\r\n";
+    db.lpush(tokens[1], tokens[2]);
+    ssize_t len = db.llen(tokens[1]);
+    return ":" + std::to_string(len) + "\r\n";
+}
+
+std::string handleRpush(const std::vector<std::string>& tokens, RedisDatabase& db) {
+    if (tokens.size() < 3)
+        return "-Error: RPUSH command requires key and value\r\n";
+    db.rpush(tokens[1], tokens[2]);
+    ssize_t len = db.llen(tokens[1]);
+    return ":" + std::to_string(len) + "\r\n";
+}
+
+std::string handleLpop(const std::vector<std::string>& tokens, RedisDatabase& db) {
+    if (tokens.size() < 2)
+        return "-Error: LPOP command requires key\r\n";
+    std::string val;
+    if (db.lpop(tokens[1], val))
+        return "$" + std::to_string(val.size()) + "\r\n" + val + "\r\n";
+    return "$-1\r\n";
+}
+
+std::string handleRpop(const std::vector<std::string>& tokens, RedisDatabase& db) {
+    if (tokens.size() < 2)
+        return "-Error: RPOP command requires key\r\n";
+    std::string val;
+    if (db.rpop(tokens[1], val))
+        return "$" + std::to_string(val.size()) + "\r\n" + val + "\r\n";
+    return "$-1\r\n";
+}
+
+std::string handleLrem(const std::vector<std::string>& tokens, RedisDatabase& db) {
+    if (tokens.size() < 4)
+        return "-Error: LREM command requires key, count, and value\r\n";
+    try {
+        int count = std::stoi(tokens[2]);
+        int removed = db.lrem(tokens[1], count, tokens[3]);
+        return ":" + std::to_string(removed) + "\r\n";
+    } catch (const std::exception&) {
+        return "-Error: Invalid count\r\n";
+    }
+}
+
+std::string handleLindex(const std::vector<std::string>& tokens, RedisDatabase& db) {
+    if (tokens.size() < 3)
+        return "-Error: LINDEX command requires key and index\r\n";
+    try {
+        int index = std::stoi(tokens[2]);
+        std::string value;
+        if (db.lindex(tokens[1], index, value))
+            return "$" + std::to_string(value.size()) + "\r\n" + value + "\r\n";
+        else
+            return "$-1\r\n";
+    } catch (const std::exception&) {
+        return "-Error: Invalid index\r\n";
+    }
+}
+
+std::string handleLset(const std::vector<std::string>& tokens, RedisDatabase& db) {
+    if (tokens.size() < 4)
+        return "-Error: LSET command requires key, index, and value\r\n";
+    try {
+        int index = std::stoi(tokens[2]);
+        if (db.lset(tokens[1], index, tokens[3]))
+            return "+OK\r\n";
+        else
+            return "-Error: Index out or range\r\n";
+    } catch (const std::exception&) {
+        return "-Error: Invalid index\r\n";
+    }
+}
+
+// Hash Operations

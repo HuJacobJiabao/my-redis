@@ -1,7 +1,8 @@
-K weather sunny
-K city Berlin
+K hello world
 K name Alice
-L colors  red green blue
+K city Berlin
+K weather sunny
 L fruits  apple banana orange
-H user:200  email:eve@example.com age:25 name:Eve
-H user:100  email:bob@example.com age:30 name:Bob
+L colors  red green blue
+H user:100  name:Bob age:30 email:bob@example.com
+H user:200  name:Eve age:25 email:eve@example.com
