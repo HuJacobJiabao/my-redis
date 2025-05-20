@@ -153,3 +153,72 @@ This server currently supports the following Redis-like commands:
 All commands use the [RESP (REdis Serialization Protocol)](https://redis.io/docs/reference/protocol-spec/) format.
 
 ---
+
+## Day 4: Implementing Key-Value and List Operations
+
+### Introduction
+On Day 4, you will implement the actual logic for key-value operations in the `RedisDatabase` class and lay the groundwork for list operations. This means your server will now be able to store, retrieve, and delete string values, as well as manage lists with commands like `LLEN`, `LPUSH`, `RPUSH`, `LPOP`, `RPOP`, `LREM`, `LINDEX`, and `LSET`. You will also add the function prototypes for list operations in the header, provide their implementations in the source file, and update the command handler to dispatch these commands.
+
+### What You Should Do
+#### 1. Implement Key-Value Operations in RedisDatabase
+- In `RedisDatabase.cpp`, implement the following methods:
+  - `void set(const std::string& key, const std::string& value);`
+  - `bool get(const std::string& key, std::string& value);`
+  - `bool del(const std::string& key);`
+  - `bool exists(const std::string& key);`
+  - `std::vector<std::string> keys();`
+  - `std::string type(const std::string& key);`
+  - `bool expire(const std::string& key, int seconds);`
+  - `bool rename(const std::string& oldKey, const std::string& newKey);`
+  - `bool flushAll();`
+- These methods should now actually store, retrieve, and manage data in the in-memory database.
+
+#### 2. Add List Operation Prototypes
+- In `RedisDatabase.h`, add the following method prototypes for list operations:
+  ```cpp
+  ssize_t llen(const std::string& key);
+  void lpush(const std::string& key, const std::string& value);
+  void rpush(const std::string& key, const std::string& value);
+  bool lpop(const std::string& key, std::string& value);
+  bool rpop(const std::string& key, std::string& value);
+  int lrem(const std::string& key, int count, const std::string& value);
+  bool lindex(const std::string& key, int index, std::string& value);
+  bool lset(const std::string& key, int index, const std::string& value);
+  ```
+
+#### 3. Implement List Operations in RedisDatabase
+- In `RedisDatabase.cpp`, implement the above list methods. For example:
+  - `llen`: Return the length of the list at the given key.
+  - `lpush`: Insert a value at the head of the list.
+  - `rpush`: Insert a value at the tail of the list.
+  - `lpop`: Remove and return the first element of the list.
+  - `rpop`: Remove and return the last element of the list.
+  - `lrem`: Remove elements equal to value as described in the Redis docs.
+  - `lindex`: Get the element at a specific index.
+  - `lset`: Set the element at a specific index.
+
+#### 4. Update the Command Handler
+- In `RedisCommandHandler.cpp`, add `else if` branches for each list command:
+  - `LLEN`, `LPUSH`, `RPUSH`, `LPOP`, `RPOP`, `LREM`, `LINDEX`, `LSET`
+- Each branch should call the corresponding handler function, which in turn calls the appropriate method in `RedisDatabase`.
+
+#### 5. Build and Test
+- Rebuild your project and test the key-value and list commands using your client or `redis-cli`.
+- Verify that data is stored, retrieved, and manipulated as expected.
+
+---
+
+### Supported List Commands
+
+| Command                        | Function                                         | Example Request (RESP)                                   | Example Response                  |
+|--------------------------------|--------------------------------------------------|----------------------------------------------------------|------------------------------------|
+| `LLEN <key>`                   | Returns the length of the list                   | `*2\r\n$4\r\nLLEN\r\n$3\r\nmylist\r\n`                | `:2\r\n` (list length)             |
+| `LPUSH <key> <value>`          | Inserts value at the head of the list            | `*3\r\n$5\r\nLPUSH\r\n$3\r\nmylist\r\n$3\r\nfoo\r\n`   | `:1\r\n` (new list length)         |
+| `RPUSH <key> <value>`          | Inserts value at the tail of the list            | `*3\r\n$5\r\nRPUSH\r\n$3\r\nmylist\r\n$3\r\nbar\r\n`   | `:2\r\n` (new list length)         |
+| `LPOP <key>`                   | Removes and returns the first element            | `*2\r\n$4\r\nLPOP\r\n$3\r\nmylist\r\n`                | `$3\r\nfoo\r\n` or `$-1\r\n`      |
+| `RPOP <key>`                   | Removes and returns the last element             | `*2\r\n$4\r\nRPOP\r\n$3\r\nmylist\r\n`                | `$3\r\nbar\r\n` or `$-1\r\n`      |
+| `LREM <key> <count> <value>`   | Removes elements equal to value                  | `*4\r\n$4\r\nLREM\r\n$3\r\nmylist\r\n$1\r\n0\r\n$3\r\nfoo\r\n` | `:1\r\n` (number removed)          |
+| `LINDEX <key> <index>`         | Gets the element at the specified index          | `*3\r\n$6\r\nLINDEX\r\n$3\r\nmylist\r\n$1\r\n0\r\n`   | `$3\r\nfoo\r\n` or `$-1\r\n`      |
+| `LSET <key> <index> <value>`   | Sets the element at the specified index          | `*4\r\n$4\r\nLSET\r\n$3\r\nmylist\r\n$1\r\n0\r\n$3\r\nbaz\r\n` | `+OK\r\n` or error                 |
+
+---
