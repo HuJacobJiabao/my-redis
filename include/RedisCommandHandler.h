@@ -53,4 +53,15 @@ std::string handleLindex(const std::vector<std::string>& tokens, RedisDatabase& 
 // Handles the LSET command. Sets the value of an element in a list by its index.
 std::string handleLset(const std::vector<std::string>& tokens, RedisDatabase& db);
 
+// Hash command handlers
+std::string handleHset(const std::vector<std::string>& tokens, RedisDatabase& db);
+std::string handleHget(const std::vector<std::string>& tokens, RedisDatabase& db);
+std::string handleHexists(const std::vector<std::string>& tokens, RedisDatabase& db);
+std::string handleHdel(const std::vector<std::string>& tokens, RedisDatabase& db);
+std::string handleHgetall(const std::vector<std::string>& tokens, RedisDatabase& db);
+std::string handleHkeys(const std::vector<std::string>& tokens, RedisDatabase& db);
+std::string handleHvals(const std::vector<std::string>& tokens, RedisDatabase& db);
+std::string handleHlen(const std::vector<std::string>& tokens, RedisDatabase& db);
+std::string handleHmset(const std::vector<std::string>& tokens, RedisDatabase& db);
+
 #endif
