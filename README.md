@@ -2,6 +2,7 @@
 
 This project is a Redis-compatible, in-memory key-value database server implemented in modern C++. It supports core Redis data types (strings, lists, hashes), RESP protocol parsing, concurrent client handling, key expiration, and periodic persistence to disk. The server is designed for educational purposes and demonstrates scalable network programming, data structure management, and basic database features in C++.
 
+
 **Tested Environment:**
 - WSL: Ubuntu 22.04.5 LTS
 - C++: GCC/G++ 11.4.0 (C++17 standard)
@@ -79,4 +80,4 @@ For a detailed, step-by-step tutorial and development log, see [day_by_day.md](.
 ---
 
 ## License
-This project is for educational purposes and personal practice only, and is not affiliated with Redis or Redis Labs.
+This project was inspired by a [YouTube tutorial series](https://www.youtube.com/watch?v=ecIkcUTIEqE&list=PL6F3pyVdiAkfr4HaJXNrQDviFJNUWahgI&ab_channel=Devw%2FSel).The project is for educational purposes and personal practice only, and is not affiliated with Redis or Redis Labs.
